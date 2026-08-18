@@ -1,0 +1,273 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0c1220">
+<title>Balance Pro Live</title>
+<style>
+:root{
+  --bg:#f4f6fb;--card:#ffffff;--text:#0f172a;--muted:#7b8495;--line:#e8ebf1;
+  --green:#22c55e;--green2:#16a34a;--red:#ff3b6b;--red2:#e11d48;
+  --blue:#2f80ff;--purple:#7c3aed;--orange:#f59e0b;--pink:#ec4899;--cyan:#06b6d4;
+  --nav:#ffffff;--shadow:0 14px 34px rgba(26,37,59,.10);
+}
+body.dark{
+  --bg:#0b1220;--card:#121b2b;--text:#f7f9fc;--muted:#97a3b7;--line:#213047;
+  --nav:#0f1726;--shadow:0 16px 36px rgba(0,0,0,.28);
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif}
+button,input,select{font:inherit}
+.app{max-width:430px;margin:auto;min-height:100vh;padding:14px 14px 96px}
+.screen{display:none}.screen.active{display:block}
+.top{display:flex;align-items:center;justify-content:space-between;margin:4px 0 16px}
+.hello{display:flex;align-items:center;gap:10px}.avatar{width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#2563eb);display:grid;place-items:center;color:#fff;font-weight:800}
+.hello h1{font-size:17px;margin:0}.hello p{font-size:12px;color:var(--muted);margin:2px 0 0}
+.iconbtn{width:38px;height:38px;border-radius:12px;border:1px solid var(--line);background:var(--card);color:var(--text);display:grid;place-items:center;box-shadow:var(--shadow)}
+.monthbar{display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:14px}
+.monthbar button{border:0;background:transparent;color:var(--muted);font-size:18px}
+.monthpill{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:8px 14px;font-weight:700;box-shadow:var(--shadow)}
+.kpis{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.kpi{border-radius:16px;color:#fff;padding:14px;min-height:94px;box-shadow:var(--shadow);position:relative;overflow:hidden}
+.kpi:after{content:"";position:absolute;width:80px;height:80px;border-radius:50%;right:-18px;bottom:-26px;background:rgba(255,255,255,.12)}
+.kpi small{font-size:12px;opacity:.88}.kpi b{display:block;font-size:22px;margin-top:8px}
+.kpi.green{background:linear-gradient(135deg,#31c96b,#159947)}.kpi.red{background:linear-gradient(135deg,#ff5f85,#d91f53)}
+.kpi.blue{background:linear-gradient(135deg,#3b82f6,#1759d2)}.kpi.purple{background:linear-gradient(135deg,#8b5cf6,#5b21b6)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow);padding:14px;margin-top:12px}
+.card h3{margin:0 0 12px;font-size:15px}
+.budgetbox{display:grid;grid-template-columns:130px 1fr;gap:12px;align-items:center}
+.ring{width:118px;height:118px;border-radius:50%;display:grid;place-items:center;position:relative}
+.ring:after{content:"";position:absolute;width:82px;height:82px;border-radius:50%;background:var(--card)}
+.ring span{z-index:2;font-size:25px;font-weight:800}
+.budgetmeta{display:grid;gap:9px;font-size:13px}.budgetmeta div{display:flex;justify-content:space-between}.budgetmeta b{font-size:14px}
+.top5{display:grid;gap:10px}.toprow{display:grid;grid-template-columns:74px 1fr 42px;gap:8px;align-items:center;font-size:12px}
+.bar{height:8px;background:rgba(127,139,160,.16);border-radius:8px;overflow:hidden}.bar i{display:block;height:100%;border-radius:8px}
+.bottomnav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:min(430px,100%);background:var(--nav);border-top:1px solid var(--line);display:grid;grid-template-columns:repeat(5,1fr);padding:7px 10px calc(7px + env(safe-area-inset-bottom));z-index:40}
+.navbtn{border:0;background:transparent;color:var(--muted);display:flex;flex-direction:column;align-items:center;gap:3px;font-size:10px;padding:5px}
+.navbtn span:first-child{font-size:20px}.navbtn.active{color:var(--blue)}
+.addbtn{width:48px;height:48px;border-radius:16px;background:linear-gradient(135deg,#2f80ff,#2563eb);color:#fff;font-size:26px;display:grid;place-items:center;margin-top:-25px;box-shadow:0 10px 22px rgba(47,128,255,.35)}
+.sectiontitle{display:flex;align-items:center;justify-content:space-between;margin:4px 0 12px}.sectiontitle h2{font-size:21px;margin:0}.sectiontitle button{border:0;background:transparent;color:var(--blue);font-size:22px}
+.list{display:grid;gap:10px}.item{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:12px;display:flex;align-items:center;gap:11px;box-shadow:var(--shadow)}
+.caticon{width:42px;height:42px;border-radius:13px;display:grid;place-items:center;color:#fff;font-size:19px}.item .main{flex:1;min-width:0}.item .main b{display:block;font-size:14px}.item .main small{color:var(--muted);font-size:11px}.amount{font-weight:800}
+.amount.expense{color:var(--red)}.amount.income{color:var(--green)}
+.goal{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:12px;box-shadow:var(--shadow)}
+.goalhead{display:flex;gap:10px;align-items:center}.goalimg{width:66px;height:66px;border-radius:14px;background:linear-gradient(135deg,#67e8f9,#2563eb);display:grid;place-items:center;font-size:30px}
+.goaltext{flex:1}.goaltext b{display:block}.goaltext small{color:var(--muted)}.progress{height:7px;background:rgba(127,139,160,.18);border-radius:7px;overflow:hidden;margin-top:10px}.progress i{display:block;height:100%;background:var(--green);border-radius:7px}
+.catgroup{margin-top:14px}.catgroup h4{font-size:12px;color:var(--muted);margin:0 0 8px}.catrow{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}.catrow:last-child{border:0}
+.settingslist{display:grid;gap:9px}.setrow{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px;display:flex;align-items:center;gap:10px}.setrow .grow{flex:1}.setrow small{color:var(--muted)}
+.segment{display:grid;grid-template-columns:repeat(3,1fr);background:rgba(127,139,160,.12);padding:3px;border-radius:12px}.segment button{border:0;background:transparent;padding:8px;border-radius:9px;color:var(--muted)}.segment button.active{background:var(--card);color:var(--text);box-shadow:0 2px 8px rgba(0,0,0,.08)}
+.modal{position:fixed;inset:0;background:rgba(5,10,20,.48);display:none;align-items:flex-end;justify-content:center;z-index:80}.modal.show{display:flex}
+.sheet{width:min(430px,100%);background:var(--card);border-radius:24px 24px 0 0;padding:16px 16px calc(18px + env(safe-area-inset-bottom));max-height:92vh;overflow:auto}
+.sheettop{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}.sheettop h2{font-size:19px;margin:0}.close{border:0;background:transparent;color:var(--blue);font-size:22px}
+.typeSeg{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px}.typeSeg button{border:0;padding:10px;border-radius:12px;background:rgba(127,139,160,.12);color:var(--muted);font-weight:700}.typeSeg button.active.income{background:#ddf8e8;color:#138b44}.typeSeg button.active.expense{background:#ffe4eb;color:#c91e4b}
+.form{display:grid;gap:11px}.field{display:grid;grid-template-columns:110px 1fr;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}.field label{font-size:13px}.field input,.field select{width:100%;border:0;background:transparent;color:var(--text);text-align:left;outline:none}.save{width:100%;border:0;background:linear-gradient(135deg,#2f80ff,#2563eb);color:#fff;border-radius:13px;padding:13px;font-weight:800;margin-top:12px}
+.quickcats{display:flex;gap:8px;overflow:auto;padding:10px 0}.quickcat{min-width:68px;text-align:center}.quickcat span{width:42px;height:42px;border-radius:13px;display:grid;place-items:center;color:#fff;margin:auto}.quickcat small{font-size:10px}
+.alert{border-radius:15px;padding:12px;display:flex;gap:10px;align-items:center;color:#fff}.alert.warning{background:linear-gradient(135deg,#f59e0b,#f97316)}.alert.danger{background:linear-gradient(135deg,#ef4444,#be123c)}.alert.info{background:linear-gradient(135deg,#3b82f6,#2563eb)}.alert.success{background:linear-gradient(135deg,#22c55e,#15803d)}
+.langrow{display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--line)}.langrow:last-child{border:0}
+.widget{background:linear-gradient(135deg,#6d28d9,#2563eb);color:#fff;border-radius:20px;padding:14px}.widget b{font-size:18px}.widgetgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}.widgetgrid div{background:rgba(255,255,255,.12);border-radius:10px;padding:8px;font-size:12px}
+.empty{text-align:center;color:var(--muted);padding:24px 10px}
+</style>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+</head>
+<body>
+<div class="app">
+  <section id="home" class="screen active">
+    <div class="top">
+      <div class="hello"><div class="avatar">D</div><div><h1>שלום דניאל 👋</h1><p>הנה מצב התקציב שלך</p></div></div>
+      <button class="iconbtn" onclick="showScreen('alerts')">🔔</button>
+    </div>
+    <div class="monthbar"><button onclick="shiftMonth(-1)">‹</button><div id="monthLabel" class="monthpill"></div><button onclick="shiftMonth(1)">›</button></div>
+    <div class="kpis">
+      <div class="kpi green"><small>הכנסות</small><b id="homeIncome">₪0</b></div>
+      <div class="kpi red"><small>הוצאות</small><b id="homeExpense">₪0</b></div>
+      <div class="kpi blue"><small>יתרה</small><b id="homeLeft">₪0</b></div>
+      <div class="kpi purple"><small>חיסכון</small><b id="homeSave">0%</b></div>
+    </div>
+    <div class="card"><h3>התקציב החודשי</h3><div class="budgetbox"><div id="ring" class="ring"><span id="ringPct">0%</span></div><div class="budgetmeta"><div><span>תקציב</span><b id="budgetTotal">₪0</b></div><div><span>הוצאות עד כה</span><b id="spentTotal">₪0</b></div><div><span>נותר</span><b id="budgetLeft">₪0</b></div></div></div></div>
+    <div class="card"><h3>Top 5 הוצאות</h3><div id="top5" class="top5"></div></div>
+  </section>
+
+  <section id="goals" class="screen">
+    <div class="sectiontitle"><h2>יעדי חיסכון</h2><button onclick="addGoal()">＋</button></div>
+    <div id="goalsList" class="list"></div>
+  </section>
+
+  <section id="transactions" class="screen">
+    <div class="sectiontitle"><h2>תנועות</h2><button onclick="openAdd()">⌕</button></div>
+    <div class="monthbar"><button onclick="shiftMonth(-1)">‹</button><div id="txMonthLabel" class="monthpill"></div><button onclick="shiftMonth(1)">›</button></div>
+    <div id="txList" class="list"></div>
+  </section>
+
+  <section id="categories" class="screen">
+    <div class="sectiontitle"><h2>קטגוריות</h2><button onclick="addCategory()">＋</button></div>
+    <div class="catgroup"><h4>הוצאות</h4><div id="expenseCats"></div></div>
+    <div class="catgroup"><h4>הכנסות</h4><div id="incomeCats"></div></div>
+  </section>
+
+  <section id="settings" class="screen">
+    <div class="sectiontitle"><h2>הגדרות</h2></div>
+    <div class="settingslist">
+      <div class="setrow"><span>🌐</span><div class="grow"><b>שפה</b><small id="langLabel">עברית</small></div><button class="iconbtn" onclick="showScreen('language')">›</button></div>
+      <div class="setrow"><span>🌗</span><div class="grow"><b>מצב תצוגה</b><small>בהיר / כהה / מערכת</small></div></div>
+      <div class="segment"><button id="themeLight" onclick="setTheme('light')">בהיר</button><button id="themeDark" onclick="setTheme('dark')">כהה</button><button id="themeSystem" onclick="setTheme('system')">מערכת</button></div>
+      <div class="setrow"><span>🔐</span><div class="grow"><b>Face ID</b><small>נעילה מאובטחת</small></div><input id="faceToggle" type="checkbox"></div>
+      <div class="setrow"><span>📤</span><div class="grow"><b>ייצוא נתונים</b><small>CSV</small></div><button class="iconbtn" onclick="exportCSV()">⇩</button></div>
+      <div class="setrow"><span>🧩</span><div class="grow"><b>Widget</b><small>תצוגה למסך הבית</small></div></div>
+      <div class="widget"><b>Balance Pro</b><div class="widgetgrid"><div>יתרה<br><strong id="widgetLeft">₪0</strong></div><div>הוצאות<br><strong id="widgetExpenses">₪0</strong></div><div>תקציב<br><strong id="widgetBudget">0%</strong></div><div>חיסכון<br><strong id="widgetSave">0%</strong></div></div></div>
+    </div>
+  </section>
+
+  <section id="alerts" class="screen">
+    <div class="sectiontitle"><h2>התראות חכמות</h2><button onclick="showScreen('home')">×</button></div>
+    <div class="list">
+      <div class="alert warning">⚠️ <div><b>אזהרת תקציב</b><div>ניצלת 80% מהתקציב החודשי שלך.</div></div></div>
+      <div class="alert danger">🚨 <div><b>חריגה מהתקציב</b><div>הקטגוריה מסעדות חרגה מהיעד.</div></div></div>
+      <div class="alert info">ℹ️ <div><b>מטרה קרובה</b><div>יעד החופשה שלך הגיע ל־75%.</div></div></div>
+      <div class="alert success">✅ <div><b>יעד הושלם</b><div>כל הכבוד, הגעת ליעד החירום.</div></div></div>
+    </div>
+  </section>
+
+  <section id="language" class="screen">
+    <div class="sectiontitle"><h2>בחירת שפה</h2><button onclick="showScreen('settings')">×</button></div>
+    <div class="card">
+      <div class="langrow"><span>🇮🇱 עברית</span><input type="radio" name="lang" value="עברית" checked onchange="setLanguage(this.value)"></div>
+      <div class="langrow"><span>🇺🇸 English</span><input type="radio" name="lang" value="English" onchange="setLanguage(this.value)"></div>
+      <div class="langrow"><span>🇪🇸 Español</span><input type="radio" name="lang" value="Español" onchange="setLanguage(this.value)"></div>
+      <div class="langrow"><span>🇫🇷 Français</span><input type="radio" name="lang" value="Français" onchange="setLanguage(this.value)"></div>
+      <div class="langrow"><span>🇩🇪 Deutsch</span><input type="radio" name="lang" value="Deutsch" onchange="setLanguage(this.value)"></div>
+      <div class="langrow"><span>⚙️ System</span><input type="radio" name="lang" value="System" onchange="setLanguage(this.value)"></div>
+    </div>
+  </section>
+</div>
+
+<div class="bottomnav">
+  <button class="navbtn active" data-screen="home" onclick="showScreen('home')"><span>⌂</span><span>בית</span></button>
+  <button class="navbtn" data-screen="goals" onclick="showScreen('goals')"><span>♡</span><span>יעדים</span></button>
+  <button class="navbtn" onclick="openAdd()"><span class="addbtn">＋</span><span>הוספה</span></button>
+  <button class="navbtn" data-screen="transactions" onclick="showScreen('transactions')"><span>☷</span><span>תנועות</span></button>
+  <button class="navbtn" data-screen="settings" onclick="showScreen('settings')"><span>•••</span><span>עוד</span></button>
+</div>
+
+<div id="addModal" class="modal">
+  <div class="sheet">
+    <div class="sheettop"><h2>הוספת תנועה</h2><button class="close" onclick="closeAdd()">×</button></div>
+    <div class="typeSeg"><button id="typeExpense" class="active expense" onclick="setEntryType('expense')">↓ הוצאה</button><button id="typeIncome" onclick="setEntryType('income')">↑ הכנסה</button></div>
+    <div class="form">
+      <div class="field"><label>סכום</label><input id="fAmount" type="number" placeholder="0.00"></div>
+      <div class="field"><label>קטגוריה</label><select id="fCategory"></select></div>
+      <div class="field"><label>תאריך</label><input id="fDate" type="date"></div>
+      <div class="field"><label>חשבון</label><select id="fPayment"><option>כרטיס אשראי</option><option>העברה בנקאית</option><option>מזומן</option><option>Bit / PayBox</option></select></div>
+      <div class="field"><label>תיאור</label><input id="fDesc" placeholder="אופציונלי"></div>
+      <div class="field"><label>חוזר כל חודש</label><input id="fRecurring" type="checkbox"></div>
+    </div>
+    <div class="quickcats" id="quickCats"></div>
+    <button class="save" onclick="saveEntry()">שמור תנועה</button>
+  </div>
+</div>
+
+<script>
+const defaultState={
+  month:'2025-05',
+  theme:'light',lang:'עברית',
+  budget:12000,
+  categories:[
+    {name:'סופרמרקט',icon:'🛒',color:'#f97316',type:'expense'},
+    {name:'תחבורה',icon:'🚙',color:'#3b82f6',type:'expense'},
+    {name:'בילויים',icon:'🎉',color:'#8b5cf6',type:'expense'},
+    {name:'קניות',icon:'🛍️',color:'#ec4899',type:'expense'},
+    {name:'בריאות',icon:'💚',color:'#22c55e',type:'expense'},
+    {name:'משכורת',icon:'💵',color:'#22c55e',type:'income'},
+    {name:'פרילנס',icon:'🧾',color:'#06b6d4',type:'income'},
+    {name:'השקעות',icon:'📈',color:'#6366f1',type:'income'}
+  ],
+  items:[
+    {id:1,type:'income',date:'2025-05-11',category:'משכורת',amount:18750,desc:'הפקדה חודשית',payment:'העברה בנקאית',recurring:true},
+    {id:2,type:'expense',date:'2025-05-12',category:'סופרמרקט',amount:125,desc:'קניות שבועיות',payment:'כרטיס אשראי',recurring:false},
+    {id:3,type:'expense',date:'2025-05-12',category:'תחבורה',amount:180,desc:'דלק',payment:'כרטיס אשראי',recurring:false},
+    {id:4,type:'expense',date:'2025-05-10',category:'בילויים',amount:220,desc:'ארוחת ערב',payment:'כרטיס אשראי',recurring:false},
+    {id:5,type:'expense',date:'2025-05-09',category:'קניות',amount:55,desc:'מנוי חודשי',payment:'כרטיס אשראי',recurring:true},
+    {id:6,type:'expense',date:'2025-05-05',category:'סופרמרקט',amount:2750,desc:'סופר וציוד לבית',payment:'כרטיס אשראי',recurring:false},
+    {id:7,type:'expense',date:'2025-05-03',category:'תחבורה',amount:1450,desc:'רכב',payment:'העברה בנקאית',recurring:false},
+    {id:8,type:'expense',date:'2025-05-02',category:'בריאות',amount:900,desc:'ביטוח ובריאות',payment:'כרטיס אשראי',recurring:false},
+    {id:9,type:'expense',date:'2025-05-01',category:'בילויים',amount:750,desc:'פנאי',payment:'כרטיס אשראי',recurring:false},
+    {id:10,type:'expense',date:'2025-05-01',category:'קניות',amount:1200,desc:'קניות לבית',payment:'כרטיס אשראי',recurring:false}
+  ],
+  goals:[
+    {id:1,title:'חופשה בתאילנד',target:15000,current:7500,icon:'🏝️'},
+    {id:2,title:'רכב חדש',target:80000,current:24000,icon:'🚙'},
+    {id:3,title:'קרן חירום',target:20000,current:12000,icon:'🛡️'}
+  ]
+};
+let state=JSON.parse(localStorage.getItem('balance-pro-mock')||'null')||defaultState;
+let entryType='expense';
+function save(){localStorage.setItem('balance-pro-mock',JSON.stringify(state))}
+const fmt=n=>'₪ '+Math.round(Number(n||0)).toLocaleString('he-IL');
+const monthName=m=>new Date(m+'-01T12:00:00').toLocaleDateString('he-IL',{month:'long',year:'numeric'});
+function calc(){
+ const m=state.month; const arr=state.items.filter(x=>x.date.slice(0,7)===m);
+ const inc=arr.filter(x=>x.type==='income').reduce((s,x)=>s+x.amount,0);
+ const exp=arr.filter(x=>x.type==='expense').reduce((s,x)=>s+x.amount,0);
+ return {arr,inc,exp,left:inc-exp,save:inc?Math.max((inc-exp)/inc,0):0};
+}
+function render(){
+ const c=calc(); document.getElementById('monthLabel').textContent=monthName(state.month);document.getElementById('txMonthLabel').textContent=monthName(state.month);
+ homeIncome.textContent=fmt(c.inc);homeExpense.textContent=fmt(c.exp);homeLeft.textContent=fmt(c.left);homeSave.textContent=Math.round(c.save*100)+'%';
+ budgetTotal.textContent=fmt(state.budget);spentTotal.textContent=fmt(c.exp);budgetLeft.textContent=fmt(state.budget-c.exp);
+ const ratio=state.budget?c.exp/state.budget:0;ringPct.textContent=Math.round(ratio*100)+'%';ring.style.background=`conic-gradient(#54d05a 0 ${Math.min(ratio,1)*360}deg,rgba(127,139,160,.14) ${Math.min(ratio,1)*360}deg 360deg)`;
+ const map={};c.arr.filter(x=>x.type==='expense').forEach(x=>map[x.category]=(map[x.category]||0)+x.amount);const top=Object.entries(map).sort((a,b)=>b[1]-a[1]).slice(0,5),max=top[0]?.[1]||1;const colors=['#ff2f6d','#f59e0b','#22c55e','#60a5fa','#f97316'];
+ top5.innerHTML=top.map(([k,v],i)=>`<div class="toprow"><span>${k}</span><div class="bar"><i style="width:${v/max*100}%;background:${colors[i]}"></i></div><b>${Math.round(v/c.exp*100)||0}%</b></div>`).join('')||'<div class="empty">אין עדיין הוצאות</div>';
+ widgetLeft.textContent=fmt(c.left);widgetExpenses.textContent=fmt(c.exp);widgetBudget.textContent=Math.round(ratio*100)+'%';widgetSave.textContent=Math.round(c.save*100)+'%';
+ renderTransactions(c.arr);renderCategories();renderGoals();applyTheme();
+}
+function renderTransactions(arr){
+ const tx=[...arr].sort((a,b)=>b.date.localeCompare(a.date));txList.innerHTML=tx.map(x=>{const cat=state.categories.find(c=>c.name===x.category)||{icon:'•',color:'#64748b'};return `<div class="item"><div class="caticon" style="background:${cat.color}">${cat.icon}</div><div class="main"><b>${x.category}</b><small>${x.date} · ${x.desc||''}</small></div><div class="amount ${x.type}">${x.type==='expense'?'-':'+'}${fmt(x.amount)}</div></div>`}).join('')||'<div class="empty">אין תנועות בחודש הזה</div>';
+}
+function renderCategories(){
+ expenseCats.innerHTML=state.categories.filter(x=>x.type==='expense').map(catRow).join('');
+ incomeCats.innerHTML=state.categories.filter(x=>x.type==='income').map(catRow).join('');
+ updateCategoryControls();
+}
+function catRow(c){return `<div class="catrow"><div class="caticon" style="background:${c.color}">${c.icon}</div><div style="flex:1">${c.name}</div><span>›</span></div>`}
+function renderGoals(){goalsList.innerHTML=state.goals.map(g=>`<div class="goal"><div class="goalhead"><div class="goalimg">${g.icon}</div><div class="goaltext"><b>${g.title}</b><small>${fmt(g.current)} / ${fmt(g.target)}</small></div><b>${Math.round(g.current/g.target*100)}%</b></div><div class="progress"><i style="width:${Math.min(g.current/g.target*100,100)}%"></i></div></div>`).join('')}
+function showScreen(id){
+ document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById(id).classList.add('active');
+ document.querySelectorAll('.navbtn').forEach(b=>b.classList.remove('active'));document.querySelector(`[data-screen="${id}"]`)?.classList.add('active');
+}
+function openAdd(){fDate.value=state.month+'-12';setEntryType('expense');updateCategoryControls();addModal.classList.add('show')}
+function closeAdd(){addModal.classList.remove('show')}
+function setEntryType(t){entryType=t;typeExpense.className=t==='expense'?'active expense':'';typeIncome.className=t==='income'?'active income':'';updateCategoryControls()}
+function updateCategoryControls(){
+ const cats=state.categories.filter(c=>c.type===entryType);fCategory.innerHTML=cats.map(c=>`<option>${c.name}</option>`).join('');quickCats.innerHTML=cats.slice(0,5).map(c=>`<div class="quickcat" onclick="fCategory.value='${c.name}'"><span style="background:${c.color}">${c.icon}</span><small>${c.name}</small></div>`).join('');
+}
+function saveEntry(){
+ const amount=Number(fAmount.value||0);if(amount<=0)return alert('הזן סכום');
+ state.items.push({id:Date.now(),type:entryType,date:fDate.value||state.month+'-01',category:fCategory.value,amount,desc:fDesc.value,payment:fPayment.value,recurring:fRecurring.checked});
+ fAmount.value='';fDesc.value='';fRecurring.checked=false;save();closeAdd();render();showScreen('transactions');
+}
+function shiftMonth(n){const d=new Date(state.month+'-01T12:00:00');d.setMonth(d.getMonth()+n);state.month=d.toISOString().slice(0,7);save();render()}
+function addGoal(){const title=prompt('שם היעד');if(!title)return;const target=Number(prompt('סכום יעד')||0);if(target<=0)return;state.goals.push({id:Date.now(),title,target,current:0,icon:'🎯'});save();render()}
+function addCategory(){const name=prompt('שם הקטגוריה');if(!name)return;state.categories.push({name,icon:'⭐',color:'#6366f1',type:'expense'});save();render()}
+function setTheme(t){state.theme=t;save();applyTheme()}
+function applyTheme(){
+ let dark=state.theme==='dark'||(state.theme==='system'&&matchMedia('(prefers-color-scheme:dark)').matches);document.body.classList.toggle('dark',dark);
+ ['themeLight','themeDark','themeSystem'].forEach(id=>document.getElementById(id).classList.remove('active'));document.getElementById('theme'+state.theme[0].toUpperCase()+state.theme.slice(1)).classList.add('active');
+}
+function setLanguage(v){state.lang=v;langLabel.textContent=v;save();setTimeout(()=>showScreen('settings'),200)}
+function exportCSV(){
+ let csv='date,type,category,amount,description,payment,recurring\n'+state.items.map(x=>[x.date,x.type,x.category,x.amount,x.desc,x.payment,x.recurring].map(v=>`"${String(v??'').replaceAll('"','""')}"`).join(',')).join('\n');
+ let blob=new Blob([csv],{type:'text/csv'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='balance-pro.csv';a.click();URL.revokeObjectURL(a.href);
+}
+langLabel.textContent=state.lang;render();
+</script>
+
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').catch(()=>{});
+  });
+}
+</script>
+</body>
+</html>
