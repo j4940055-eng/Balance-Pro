@@ -20,7 +20,7 @@ jobs:
       - name: Copy current app files to outputs
         run: |
           mkdir -p outputs
-          for file in index.html documents.html documents-v2.html documents-v3.html documents-v4.html search.html data.html loans.html manifest.json sw.js; do
+          for file in index.html app.html app.js app-core.js ui.css documents.html documents-v4.html search.html data.html loans.html manifest.json sw.js icon.svg; do
             if [ -f "$file" ]; then
               cp "$file" "outputs/$file"
             fi
