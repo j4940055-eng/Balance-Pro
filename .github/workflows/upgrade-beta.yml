@@ -4,6 +4,7 @@ on:
     branches: [main]
     paths:
       - scripts/upgrade-index.py
+      - scripts/pwa-index.py
       - .github/workflows/upgrade-beta.yml
   workflow_dispatch:
 permissions:
@@ -15,8 +16,10 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Apply upgrade
-        run: python scripts/upgrade-index.py
+      - name: Apply architecture and UI upgrade
+        run: |
+          python scripts/upgrade-index.py
+          python scripts/pwa-index.py
       - name: Commit upgraded app
         run: |
           git config user.name "github-actions[bot]"
@@ -25,6 +28,6 @@ jobs:
           if git diff --cached --quiet; then
             echo "Already upgraded"
           else
-            git commit -m "Upgrade UI and fix salary and money model"
+            git commit -m "Upgrade MoneyTalks beta architecture and PWA"
             git push
           fi
