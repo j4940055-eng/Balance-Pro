@@ -17,6 +17,9 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Test finance logic
+        run: node tests/money-core.test.js
+
       - name: Copy current app files to outputs
         run: |
           mkdir -p outputs
