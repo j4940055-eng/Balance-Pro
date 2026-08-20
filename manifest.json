@@ -1,10 +1,17 @@
 {
   "name": "MoneyTalks",
   "short_name": "MoneyTalks",
+  "description": "Personal finance, budgets, savings, loans and smart document tracking.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
+  "orientation": "portrait-primary",
   "background_color": "#07111f",
-  "theme_color": "#2f6df6",
-  "lang": "he"
+  "theme_color": "#07111f",
+  "lang": "he",
+  "dir": "rtl",
+  "categories": ["finance", "productivity"],
+  "icons": [
+    {"src":"icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}
+  ]
 }
