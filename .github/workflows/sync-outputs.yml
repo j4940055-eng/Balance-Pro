@@ -20,6 +20,33 @@ jobs:
       - name: Test finance logic
         run: node tests/money-core.test.js
 
+      - name: Add direct camera capture safely
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('documents-v6.html')
+          if not p.exists():
+              raise SystemExit('documents-v6.html missing')
+          s=p.read_text()
+          if 'id="camera"' not in s:
+              old='<label class="primary" style="display:block;cursor:pointer;margin-top:13px" for="files">בחר מסמכים</label><input id="files" type="file" multiple accept="image/*,.pdf,.csv,.txt,.json,application/pdf,text/csv,text/plain,application/json">'
+              new='<div class="upload-actions"><label class="primary" for="files">📁 בחר מסמכים</label><label class="secondary camera-action" for="camera">📷 צלם מסמך עכשיו</label></div><input id="files" type="file" multiple accept="image/*,.pdf,.csv,.txt,.json,application/pdf,text/csv,text/plain,application/json"><input id="camera" type="file" accept="image/*" capture="environment">'
+              if old not in s:
+                  raise SystemExit('upload markup anchor not found')
+              s=s.replace(old,new,1)
+              css='.upload-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:13px}.upload-actions label{display:block;cursor:pointer;margin:0}.camera-action{border:1px solid #19d3a7;color:#19d3a7;background:#19d3a70b}@media(max-width:520px){.upload-actions{grid-template-columns:1fr}}'
+              s=s.replace('</style><script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js">',css+'</style><script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js">',1)
+              oldjs="$('files').onchange=e=>{process(e.target.files);e.target.value=''};"
+              newjs="$('files').onchange=e=>{process(e.target.files);e.target.value=''};$('camera').onchange=e=>{let f=e.target.files&&e.target.files[0];if(f){$('pending').textContent='צילום התקבל, מתחיל ניתוח…';process([f])}e.target.value=''};"
+              if oldjs not in s:
+                  raise SystemExit('file change handler anchor not found')
+              s=s.replace(oldjs,newjs,1)
+              p.write_text(s)
+              print('Camera capture added directly to documents-v6.html')
+          else:
+              print('Camera capture already present')
+          PY
+
       - name: Copy current app files to outputs
         run: |
           mkdir -p outputs
@@ -29,14 +56,14 @@ jobs:
             fi
           done
 
-      - name: Commit outputs when changed
+      - name: Commit source fixes and outputs when changed
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add outputs/
+          git add documents-v6.html outputs/
           if git diff --cached --quiet; then
-            echo "outputs already up to date"
+            echo "app and outputs already up to date"
           else
-            git commit -m "Sync current app files to outputs"
+            git commit -m "Add camera capture and sync current app files"
             git push
           fi
