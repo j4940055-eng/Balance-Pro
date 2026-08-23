@@ -20,7 +20,7 @@ jobs:
       - name: Test finance logic
         run: node tests/money-core.test.js
 
-      - name: Add direct camera capture safely
+      - name: Improve smart document parsing
         run: |
           python3 - <<'PY'
           from pathlib import Path
@@ -28,23 +28,55 @@ jobs:
           if not p.exists():
               raise SystemExit('documents-v6.html missing')
           s=p.read_text()
-          if 'id="camera"' not in s:
-              old='<label class="primary" style="display:block;cursor:pointer;margin-top:13px" for="files">בחר מסמכים</label><input id="files" type="file" multiple accept="image/*,.pdf,.csv,.txt,.json,application/pdf,text/csv,text/plain,application/json">'
-              new='<div class="upload-actions"><label class="primary" for="files">📁 בחר מסמכים</label><label class="secondary camera-action" for="camera">📷 צלם מסמך עכשיו</label></div><input id="files" type="file" multiple accept="image/*,.pdf,.csv,.txt,.json,application/pdf,text/csv,text/plain,application/json"><input id="camera" type="file" accept="image/*" capture="environment">'
-              if old not in s:
-                  raise SystemExit('upload markup anchor not found')
+
+          # Known merchant/category mappings from real Israeli statements.
+          s=s.replace("['סיגריות ומוצרי טבק',/טבק|סיגר|tobacco/]", "['סיגריות ומוצרי טבק',/טבק|סיגר|tobacco|פוינט|point(?:\\s|$)/]")
+          s=s.replace("['סופרמרקט',/שופרסל|רמי לוי|carrefour|קרפור|ויקטורי|יוחננוף|מגה|סטופמרקט|מינימרקט|סופר/]", "['סופרמרקט',/שופרסל|רמי לוי|carrefour|קרפור|ויקטורי|יוחננוף|מגה|סטופמרקט|מינימרקט|סופר|am:pm|טיב טעם/]")
+          s=s.replace("['מסעדות ובתי קפה',/wolt|וולט|קפה|מסעד|bakery|בייקרי|רולדין|פטיסרי|שומשום|שרונה/]", "['מסעדות ובתי קפה',/wolt|וולט|קפה|מסעד|bakery|בייקרי|רולדין|פטיסרי|שומשום|שרונה|ארומה|greg|קפה קפה/]")
+
+          # Detect the statement's own total for reconciliation, without importing it as another transaction.
+          anchor="function detectSource(text){let s=String(text||'');"
+          if 'function statementTotal(' not in s and anchor in s:
+              insert="function statementTotal(text){let raw=String(text||''),patterns=[/סה.?כ\\s*(?:לתשלום|לחיוב)[^\\n₪]{0,35}₪?\\s*([\\d,]+(?:\\.\\d{1,2})?)/i,/סה.?כ\\s*חיוב[^\\n₪]{0,35}₪?\\s*([\\d,]+(?:\\.\\d{1,2})?)/i,/total[^\\n₪]{0,35}₪\\s*([\\d,]+(?:\\.\\d{1,2})?)/i];for(const r of patterns){let m=raw.match(r);if(m){let n=Number(m[1].replace(/,/g,''));if(n>0)return MT.toMinor(n)}}return 0}"
+              s=s.replace(anchor,insert+anchor,1)
+
+          # Cross-document duplicate detection, including overlapping screenshots in the current upload queue.
+          old="function dup(r){let candidates=st.transactions.filter(t=>t.type==='expense'&&(t.occurredDate||t.date)===r.date&&Math.abs((t.amountMinor||0)-r.amountMinor)<=1);if(!candidates.length)return false;let n=norm(r.merchant);return candidates.some(t=>{let m=norm(t.note||t.merchant||'');return!n||!m||n===m||n.includes(m)||m.includes(n)})}"
+          new="function dup(r){let queued=docs.flatMap(d=>(d.rows||[]).map(x=>({type:x.type||'expense',occurredDate:x.date,date:x.date,amountMinor:x.amountMinor,note:x.merchant,merchant:x.merchant}))),candidates=[...st.transactions,...queued].filter(t=>['expense','refund'].includes(t.type||'expense')&&(t.occurredDate||t.date)===r.date&&Math.abs((t.amountMinor||0)-r.amountMinor)<=1);if(!candidates.length)return false;let n=norm(r.merchant);return candidates.some(t=>{let m=norm(t.note||t.merchant||'');return!n||!m||n===m||n.includes(m)||m.includes(n)})}"
+          if old in s:
               s=s.replace(old,new,1)
-              css='.upload-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:13px}.upload-actions label{display:block;cursor:pointer;margin:0}.camera-action{border:1px solid #19d3a7;color:#19d3a7;background:#19d3a70b}@media(max-width:520px){.upload-actions{grid-template-columns:1fr}}'
-              s=s.replace('</style><script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js">',css+'</style><script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js">',1)
-              oldjs="$('files').onchange=e=>{process(e.target.files);e.target.value=''};"
-              newjs="$('files').onchange=e=>{process(e.target.files);e.target.value=''};$('camera').onchange=e=>{let f=e.target.files&&e.target.files[0];if(f){$('pending').textContent='צילום התקבל, מתחיל ניתוח…';process([f])}e.target.value=''};"
-              if oldjs not in s:
-                  raise SystemExit('file change handler anchor not found')
-              s=s.replace(oldjs,newjs,1)
-              p.write_text(s)
-              print('Camera capture added directly to documents-v6.html')
-          else:
-              print('Camera capture already present')
+
+          # Strengthen analysis: strip statement summary rows, capture expected total, expose reconciliation delta.
+          old="async function analyze(file,progress){let d;if(file.type.startsWith('image/'))d=await imageData(file,progress);else if(file.type==='application/pdf'||/\\.pdf$/i.test(file.name))d=await pdfData(file,progress);else d=await textData(file);let type=detectType(d.text,d.ratio),source=detectSource(d.text);d.rows.forEach(r=>{r.duplicate=dup(r);if(r.duplicate)r.selected=false});if(type==='web')d.rows.forEach(r=>r.selected=false);return{id:'doc-'+Date.now()+'-'+Math.random().toString(36).slice(2),name:file.name,type,source,period:period(d.rows),rows:d.rows,textSample:String(d.text).slice(0,1200),status:d.rows.length?`${d.rows.length} שורות זוהו`:'לא זוהו תנועות'}}"
+          new="async function analyze(file,progress){let d;if(file.type.startsWith('image/'))d=await imageData(file,progress);else if(file.type==='application/pdf'||/\\.pdf$/i.test(file.name))d=await pdfData(file,progress);else d=await textData(file);let type=detectType(d.text,d.ratio),source=detectSource(d.text),statementTotalMinor=statementTotal(d.text);if(type==='credit_card')d.rows=d.rows.filter(r=>!/סה.?כ|לחיוב|לתשלום|total/.test(norm(r.merchant)));d.rows.forEach(r=>{r.duplicate=dup(r);if(r.duplicate)r.selected=false});if(type==='web')d.rows.forEach(r=>r.selected=false);let selected=d.rows.filter(r=>r.selected&&r.type!=='transfer'),parsedTotalMinor=selected.reduce((n,r)=>n+(r.type==='refund'?-r.amountMinor:r.amountMinor),0);return{id:'doc-'+Date.now()+'-'+Math.random().toString(36).slice(2),name:file.name,type,source,period:period(d.rows),rows:d.rows,statementTotalMinor,parsedTotalMinor,textSample:String(d.text).slice(0,1200),status:d.rows.length?`${d.rows.length} שורות זוהו`:'לא זוהו תנועות'}}"
+          if old in s:
+              s=s.replace(old,new,1)
+
+          # Add reconciliation UI below category totals.
+          old_markup='<div class="actions"><button class="primary" id="approve">אשר והוסף לחישובים</button>'
+          if 'id="reconcile"' not in s and old_markup in s:
+              s=s.replace(old_markup,'<div class="status" id="reconcile"></div>'+old_markup,1)
+
+          # Explain reconciliation in the review header.
+          old_analysis="$('analysis').textContent=`${d.status}. ${d.rows.filter(x=>x.duplicate).length?d.rows.filter(x=>x.duplicate).length+' שורות נראות ככפילויות קיימות ולא סומנו. ':''}${d.type==='web'?'המסמך נראה כמו צילום אתר ולא כמו דוח פיננסי, לכן שום שורה לא סומנה אוטומטית.':''}`;renderRows()"
+          new_analysis="$('analysis').textContent=`${d.status}. ${d.rows.filter(x=>x.duplicate).length?d.rows.filter(x=>x.duplicate).length+' שורות נראות ככפילויות קיימות/חופפות ולא סומנו. ':''}${d.type==='web'?'המסמך נראה כמו צילום אתר ולא כמו דוח פיננסי, לכן שום שורה לא סומנה אוטומטית.':''}`;renderRows()"
+          if old_analysis in s:
+              s=s.replace(old_analysis,new_analysis,1)
+
+          # Recalculate both parsed sum and gap versus the statement's official total whenever user edits/selects rows.
+          old_totals="function totals(){let rows=docs[idx]?.rows.filter(x=>x.selected)||[],sum=0,map={};rows.forEach(x=>{if(x.type==='transfer')return;let sign=x.type==='refund'?-1:1;sum+=sign*x.amountMinor;map[x.category]=(map[x.category]||0)+sign*x.amountMinor});$('total').textContent=fmt(Math.max(sum,0));$('queueTotal').textContent=fmt(Math.max(sum,0));$('cats').innerHTML=Object.entries(map).filter(([,n])=>n>0).sort((a,b)=>b[1]-a[1]).map(([c,n])=>`<div class=\"cat\"><span>${esc(c)}</span><b>${fmt(n)}</b></div>`).join('')}"
+          new_totals="function totals(){let d=docs[idx],rows=d?.rows.filter(x=>x.selected)||[],sum=0,map={};rows.forEach(x=>{if(x.type==='transfer')return;let sign=x.type==='refund'?-1:1;sum+=sign*x.amountMinor;map[x.category]=(map[x.category]||0)+sign*x.amountMinor});if(d)d.parsedTotalMinor=sum;$('total').textContent=fmt(Math.max(sum,0));$('queueTotal').textContent=fmt(Math.max(sum,0));$('cats').innerHTML=Object.entries(map).filter(([,n])=>n>0).sort((a,b)=>b[1]-a[1]).map(([c,n])=>`<div class=\"cat\"><span>${esc(c)}</span><b>${fmt(n)}</b></div>`).join('');let r=$('reconcile');if(r){if(d?.statementTotalMinor){let gap=d.statementTotalMinor-sum,ok=Math.abs(gap)<=2;r.innerHTML=ok?`✅ התאמה מלאה לסכום שמופיע בדוח: <b>${fmt(d.statementTotalMinor)}</b>`:`⚠️ בדוח מופיע <b>${fmt(d.statementTotalMinor)}</b>, אבל סכום השורות שנבחרו הוא <b>${fmt(sum)}</b>. פער: <b>${fmt(Math.abs(gap))}</b>. כדאי לבדוק אם שורה חסרה, כפולה או נקראה לא נכון.`}else r.textContent='לא זוהה בדוח סכום רשמי להשוואה. הסכום מחושב מכל השורות שסומנו.'}}"
+          if old_totals in s:
+              s=s.replace(old_totals,new_totals,1)
+
+          # Preserve reconciliation metadata with saved document.
+          old_saved="st.documents.push({id:d.id,name:d.name,documentType:type,source:d.source,period:d.period,importedCount:added,totalMinor:total,createdAt:new Date().toISOString()});"
+          new_saved="st.documents.push({id:d.id,name:d.name,documentType:type,source:d.source,period:d.period,importedCount:added,totalMinor:total,statementTotalMinor:d.statementTotalMinor||0,reconciled:!!d.statementTotalMinor&&Math.abs((d.statementTotalMinor||0)-total)<=2,createdAt:new Date().toISOString()});"
+          if old_saved in s:
+              s=s.replace(old_saved,new_saved,1)
+
+          p.write_text(s)
+          print('Smart document parsing enhancements applied')
           PY
 
       - name: Copy current app files to outputs
@@ -64,6 +96,6 @@ jobs:
           if git diff --cached --quiet; then
             echo "app and outputs already up to date"
           else
-            git commit -m "Add camera capture and sync current app files"
+            git commit -m "Improve statement parsing, reconciliation and categorization"
             git push
           fi
