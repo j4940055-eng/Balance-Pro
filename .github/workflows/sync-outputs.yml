@@ -17,75 +17,43 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Test finance logic
-        run: node tests/money-core.test.js
+      - name: Test finance and document logic
+        run: |
+          node tests/money-core.test.js
+          node tests/document-engine.test.js
 
-      - name: Improve smart document parsing
+      - name: Wire tested document engine
         run: |
           python3 - <<'PY'
           from pathlib import Path
           p=Path('documents-v6.html')
-          if not p.exists():
-              raise SystemExit('documents-v6.html missing')
+          if not p.exists(): raise SystemExit('documents-v6.html missing')
           s=p.read_text()
-
-          # Known merchant/category mappings from real Israeli statements.
-          s=s.replace("['סיגריות ומוצרי טבק',/טבק|סיגר|tobacco/]", "['סיגריות ומוצרי טבק',/טבק|סיגר|tobacco|פוינט|point(?:\\s|$)/]")
-          s=s.replace("['סופרמרקט',/שופרסל|רמי לוי|carrefour|קרפור|ויקטורי|יוחננוף|מגה|סטופמרקט|מינימרקט|סופר/]", "['סופרמרקט',/שופרסל|רמי לוי|carrefour|קרפור|ויקטורי|יוחננוף|מגה|סטופמרקט|מינימרקט|סופר|am:pm|טיב טעם/]")
-          s=s.replace("['מסעדות ובתי קפה',/wolt|וולט|קפה|מסעד|bakery|בייקרי|רולדין|פטיסרי|שומשום|שרונה/]", "['מסעדות ובתי קפה',/wolt|וולט|קפה|מסעד|bakery|בייקרי|רולדין|פטיסרי|שומשום|שרונה|ארומה|greg|קפה קפה/]")
-
-          # Detect the statement's own total for reconciliation, without importing it as another transaction.
-          anchor="function detectSource(text){let s=String(text||'');"
-          if 'function statementTotal(' not in s and anchor in s:
-              insert="function statementTotal(text){let raw=String(text||''),patterns=[/סה.?כ\\s*(?:לתשלום|לחיוב)[^\\n₪]{0,35}₪?\\s*([\\d,]+(?:\\.\\d{1,2})?)/i,/סה.?כ\\s*חיוב[^\\n₪]{0,35}₪?\\s*([\\d,]+(?:\\.\\d{1,2})?)/i,/total[^\\n₪]{0,35}₪\\s*([\\d,]+(?:\\.\\d{1,2})?)/i];for(const r of patterns){let m=raw.match(r);if(m){let n=Number(m[1].replace(/,/g,''));if(n>0)return MT.toMinor(n)}}return 0}"
-              s=s.replace(anchor,insert+anchor,1)
-
-          # Cross-document duplicate detection, including overlapping screenshots in the current upload queue.
-          old="function dup(r){let candidates=st.transactions.filter(t=>t.type==='expense'&&(t.occurredDate||t.date)===r.date&&Math.abs((t.amountMinor||0)-r.amountMinor)<=1);if(!candidates.length)return false;let n=norm(r.merchant);return candidates.some(t=>{let m=norm(t.note||t.merchant||'');return!n||!m||n===m||n.includes(m)||m.includes(n)})}"
-          new="function dup(r){let queued=docs.flatMap(d=>(d.rows||[]).map(x=>({type:x.type||'expense',occurredDate:x.date,date:x.date,amountMinor:x.amountMinor,note:x.merchant,merchant:x.merchant}))),candidates=[...st.transactions,...queued].filter(t=>['expense','refund'].includes(t.type||'expense')&&(t.occurredDate||t.date)===r.date&&Math.abs((t.amountMinor||0)-r.amountMinor)<=1);if(!candidates.length)return false;let n=norm(r.merchant);return candidates.some(t=>{let m=norm(t.note||t.merchant||'');return!n||!m||n===m||n.includes(m)||m.includes(n)})}"
-          if old in s:
-              s=s.replace(old,new,1)
-
-          # Strengthen analysis: strip statement summary rows, capture expected total, expose reconciliation delta.
-          old="async function analyze(file,progress){let d;if(file.type.startsWith('image/'))d=await imageData(file,progress);else if(file.type==='application/pdf'||/\\.pdf$/i.test(file.name))d=await pdfData(file,progress);else d=await textData(file);let type=detectType(d.text,d.ratio),source=detectSource(d.text);d.rows.forEach(r=>{r.duplicate=dup(r);if(r.duplicate)r.selected=false});if(type==='web')d.rows.forEach(r=>r.selected=false);return{id:'doc-'+Date.now()+'-'+Math.random().toString(36).slice(2),name:file.name,type,source,period:period(d.rows),rows:d.rows,textSample:String(d.text).slice(0,1200),status:d.rows.length?`${d.rows.length} שורות זוהו`:'לא זוהו תנועות'}}"
-          new="async function analyze(file,progress){let d;if(file.type.startsWith('image/'))d=await imageData(file,progress);else if(file.type==='application/pdf'||/\\.pdf$/i.test(file.name))d=await pdfData(file,progress);else d=await textData(file);let type=detectType(d.text,d.ratio),source=detectSource(d.text),statementTotalMinor=statementTotal(d.text);if(type==='credit_card')d.rows=d.rows.filter(r=>!/סה.?כ|לחיוב|לתשלום|total/.test(norm(r.merchant)));d.rows.forEach(r=>{r.duplicate=dup(r);if(r.duplicate)r.selected=false});if(type==='web')d.rows.forEach(r=>r.selected=false);let selected=d.rows.filter(r=>r.selected&&r.type!=='transfer'),parsedTotalMinor=selected.reduce((n,r)=>n+(r.type==='refund'?-r.amountMinor:r.amountMinor),0);return{id:'doc-'+Date.now()+'-'+Math.random().toString(36).slice(2),name:file.name,type,source,period:period(d.rows),rows:d.rows,statementTotalMinor,parsedTotalMinor,textSample:String(d.text).slice(0,1200),status:d.rows.length?`${d.rows.length} שורות זוהו`:'לא זוהו תנועות'}}"
-          if old in s:
-              s=s.replace(old,new,1)
-
-          # Add reconciliation UI below category totals.
-          old_markup='<div class="actions"><button class="primary" id="approve">אשר והוסף לחישובים</button>'
-          if 'id="reconcile"' not in s and old_markup in s:
-              s=s.replace(old_markup,'<div class="status" id="reconcile"></div>'+old_markup,1)
-
-          # Explain reconciliation in the review header.
-          old_analysis="$('analysis').textContent=`${d.status}. ${d.rows.filter(x=>x.duplicate).length?d.rows.filter(x=>x.duplicate).length+' שורות נראות ככפילויות קיימות ולא סומנו. ':''}${d.type==='web'?'המסמך נראה כמו צילום אתר ולא כמו דוח פיננסי, לכן שום שורה לא סומנה אוטומטית.':''}`;renderRows()"
-          new_analysis="$('analysis').textContent=`${d.status}. ${d.rows.filter(x=>x.duplicate).length?d.rows.filter(x=>x.duplicate).length+' שורות נראות ככפילויות קיימות/חופפות ולא סומנו. ':''}${d.type==='web'?'המסמך נראה כמו צילום אתר ולא כמו דוח פיננסי, לכן שום שורה לא סומנה אוטומטית.':''}`;renderRows()"
-          if old_analysis in s:
-              s=s.replace(old_analysis,new_analysis,1)
-
-          # Recalculate both parsed sum and gap versus the statement's official total whenever user edits/selects rows.
-          old_totals="function totals(){let rows=docs[idx]?.rows.filter(x=>x.selected)||[],sum=0,map={};rows.forEach(x=>{if(x.type==='transfer')return;let sign=x.type==='refund'?-1:1;sum+=sign*x.amountMinor;map[x.category]=(map[x.category]||0)+sign*x.amountMinor});$('total').textContent=fmt(Math.max(sum,0));$('queueTotal').textContent=fmt(Math.max(sum,0));$('cats').innerHTML=Object.entries(map).filter(([,n])=>n>0).sort((a,b)=>b[1]-a[1]).map(([c,n])=>`<div class=\"cat\"><span>${esc(c)}</span><b>${fmt(n)}</b></div>`).join('')}"
-          new_totals="function totals(){let d=docs[idx],rows=d?.rows.filter(x=>x.selected)||[],sum=0,map={};rows.forEach(x=>{if(x.type==='transfer')return;let sign=x.type==='refund'?-1:1;sum+=sign*x.amountMinor;map[x.category]=(map[x.category]||0)+sign*x.amountMinor});if(d)d.parsedTotalMinor=sum;$('total').textContent=fmt(Math.max(sum,0));$('queueTotal').textContent=fmt(Math.max(sum,0));$('cats').innerHTML=Object.entries(map).filter(([,n])=>n>0).sort((a,b)=>b[1]-a[1]).map(([c,n])=>`<div class=\"cat\"><span>${esc(c)}</span><b>${fmt(n)}</b></div>`).join('');let r=$('reconcile');if(r){if(d?.statementTotalMinor){let gap=d.statementTotalMinor-sum,ok=Math.abs(gap)<=2;r.innerHTML=ok?`✅ התאמה מלאה לסכום שמופיע בדוח: <b>${fmt(d.statementTotalMinor)}</b>`:`⚠️ בדוח מופיע <b>${fmt(d.statementTotalMinor)}</b>, אבל סכום השורות שנבחרו הוא <b>${fmt(sum)}</b>. פער: <b>${fmt(Math.abs(gap))}</b>. כדאי לבדוק אם שורה חסרה, כפולה או נקראה לא נכון.`}else r.textContent='לא זוהה בדוח סכום רשמי להשוואה. הסכום מחושב מכל השורות שסומנו.'}}"
-          if old_totals in s:
-              s=s.replace(old_totals,new_totals,1)
-
-          # Preserve reconciliation metadata with saved document.
-          old_saved="st.documents.push({id:d.id,name:d.name,documentType:type,source:d.source,period:d.period,importedCount:added,totalMinor:total,createdAt:new Date().toISOString()});"
-          new_saved="st.documents.push({id:d.id,name:d.name,documentType:type,source:d.source,period:d.period,importedCount:added,totalMinor:total,statementTotalMinor:d.statementTotalMinor||0,reconciled:!!d.statementTotalMinor&&Math.abs((d.statementTotalMinor||0)-total)<=2,createdAt:new Date().toISOString()});"
-          if old_saved in s:
-              s=s.replace(old_saved,new_saved,1)
-
+          if 'document-engine.js' not in s:
+              s=s.replace('<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>','<script src="document-engine.js?v=20260823b"></script><script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>',1)
+          replacements={
+            "const TYPES={credit_card:'כרטיס אשראי',bank:'דף חשבון / עו״ש',receipt:'קבלה / חשבונית',salary:'תלוש / הכנסה',loan:'הלוואה / החזר',web:'צילום אתר / מסמך לא פיננסי',other:'אחר'};const CATS=['סופרמרקט','מסעדות ובתי קפה','סיגריות ומוצרי טבק','דיור','רכב','דלק','תחבורה','בילויים','קניות','חשבונות','סלולר ואינטרנט','בריאות','ביטוחים','חופשות','ילדים','מנויים','עמלות וריביות','אגרות ושירותים','העברות ותשלומים','הלוואות והחזרים','אחר'];":"const TYPES=MTDoc.TYPES;const CATS=MTDoc.CATEGORIES;",
+            "function norm(s){return String(s||'').toLowerCase().replace(/[״\"'׳']/g,'').replace(/\\s+/g,' ').trim()}":"const norm=MTDoc.norm;",
+            "function classify(s){s=norm(s);let rules=[['סיגריות ומוצרי טבק',/טבק|סיגר|tobacco|פוינט|point(?:\\s|$)/],['סופרמרקט',/שופרסל|רמי לוי|carrefour|קרפור|ויקטורי|יוחננוף|מגה|סטופמרקט|מינימרקט|סופר|am:pm|טיב טעם/],['מסעדות ובתי קפה',/wolt|וולט|קפה|מסעד|bakery|בייקרי|רולדין|פטיסרי|שומשום|שרונה|ארומה|greg|קפה קפה/],['תחבורה',/gett|מונית|taxi|רכבת|אגד|דן /],['דלק',/פז|yellow|סונול|דור אלון|דלק|fuel/],['בריאות',/כללית|מכבי|מאוחדת|לאומית|פארם|pharm|רופא|בריאות|תרופה/],['ביטוחים',/מנורה|מבטחים|הראל|הפניקס|כלל ביטוח|ביטוח/],['סלולר ואינטרנט',/פרטנר|partner|סלקום|cellcom|פלאפון|hot mobile|תקשורת/],['עמלות וריביות',/דמי כרטיס|עמלה|ריבית|הנפקה/],['אגרות ושירותים',/שגרירות|קונסול|אגרה|משרד הפנים|רשות/],['העברות ותשלומים',/bit|paybox|העברה/],['קניות',/zara|nike|adidas|h&m|חנות|shop/],['חשבונות',/חשמל|מים|ארנונה|electric|water/],['מנויים',/netflix|spotify|apple|google|מנוי/]];for(const[c,r]of rules)if(r.test(s))return c;return'אחר'}":"const classify=MTDoc.classify;",
+            "function txKind(s){s=norm(s);if(/משיכת מזומנים|משיכה מכספומט/.test(s))return'transfer';if(/זיכוי|החזר כספי|ביטול עסקה/.test(s))return'refund';return'expense'}":"const txKind=MTDoc.txKind;",
+          }
+          for old,new in replacements.items():
+              if old in s: s=s.replace(old,new,1)
+          # Prefer the tested engine for OCR line parsing and metadata detection.
+          s=s.replace("let type=detectType(d.text,d.ratio),source=detectSource(d.text),statementTotalMinor=statementTotal(d.text);","let type=MTDoc.detectType(d.text,d.ratio),source=MTDoc.detectSource(d.text),statementTotalMinor=MTDoc.statementTotal(d.text);",1)
+          s=s.replace("let lines=Object.values(groups).map(a=>a.sort((x,y)=>x.x-y.x).map(x=>x.text).join(' '));return{lines,rows:linesToRows(lines)}","let lines=Object.values(groups).map(a=>a.sort((x,y)=>x.x-y.x).map(x=>x.text).join(' '));return{lines,rows:MTDoc.parseLines(lines,new Date())}",1)
+          s=s.replace("if(p.rows.length<2)p.rows=linesToRows(text.split(/\\r?\\n/));","if(p.rows.length<2)p.rows=MTDoc.parseLines(text.split(/\\r?\\n/),new Date());",1)
+          s=s.replace("all.push(...linesToRows(lines))","all.push(...MTDoc.parseLines(lines,new Date()))",1)
+          s=s.replace("return{text,rows:linesToRows(text.split(/\\r?\\n/)),ratio:1}","return{text,rows:MTDoc.parseLines(text.split(/\\r?\\n/),new Date()),ratio:1}",1)
           p.write_text(s)
-          print('Smart document parsing enhancements applied')
+          print('Tested document engine wired')
           PY
 
       - name: Copy current app files to outputs
         run: |
           mkdir -p outputs
-          for file in index.html app.html app.js app-core.js ui.css home-plan.js home-plan.css documents.html documents-v6.html search.html data.html loans.html manifest.json sw.js icon.svg; do
-            if [ -f "$file" ]; then
-              cp "$file" "outputs/$file"
-            fi
+          for file in index.html app.html app.js app-core.js ui.css home-plan.js home-plan.css document-engine.js documents.html documents-v6.html search.html data.html loans.html manifest.json sw.js icon.svg; do
+            if [ -f "$file" ]; then cp "$file" "outputs/$file"; fi
           done
 
       - name: Commit source fixes and outputs when changed
@@ -96,6 +64,6 @@ jobs:
           if git diff --cached --quiet; then
             echo "app and outputs already up to date"
           else
-            git commit -m "Improve statement parsing, reconciliation and categorization"
+            git commit -m "Wire tested document engine and sync outputs"
             git push
           fi
